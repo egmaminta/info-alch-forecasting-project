@@ -34,7 +34,7 @@ if __name__ == "__main__":
     data["Date"] = pandas.to_datetime(data["Date"], format="%Y-%m-%d")
     data.set_index(keys="Date", inplace=True)
     data = utils.create_close_change(dataframe=data)
-    data = utils.create_features(dataframe=data)
+    data = utils.create_features_date_only(dataframe=data)
     data = utils.add_holiday_features(data, country="india", years=[2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021])
     data = utils.generate_cyclical_features(dataframe=data, col="day_of_week", period=7, start_num=0)
     data = utils.generate_cyclical_features(dataframe=data, col="day_of_month", period=30, start_num=1)
@@ -42,9 +42,8 @@ if __name__ == "__main__":
     data = utils.generate_cyclical_features(dataframe=data, col="month", period=12, start_num=1)
     scaler = MinMaxScaler(feature_range=(-1, 1))
     print(data.head(5))
-    scaler.fit(data[["open", "high", "low", "close_change","close"]])
-    data[["open", "high", "low", "close_change","close"]] = scaler.transform(data[["open", "high", "low", "close_change","close"]])
-    print(data.head(5))
+    scaler.fit(data[["close"]])
+    data[["close"]] = scaler.transform(data[["close"]])
     train_size_ratio = 0.8
     train_size = int(len(data.index) * train_size_ratio)
     train_data, test_data = data[:train_size], data[train_size:]
@@ -92,7 +91,7 @@ if __name__ == "__main__":
     )
     checkpoint_callback_lstm = ModelCheckpoint(
         dirpath="checkpoints",
-        filename="best_model_lstm",
+        filename="best_model_lstm_stock2",
         monitor="val_loss",
         mode="min",
         save_top_k=1,
@@ -100,7 +99,7 @@ if __name__ == "__main__":
     )
     checkpoint_callback_gru = ModelCheckpoint(
         dirpath="checkpoints",
-        filename="best_model_gru",
+        filename="best_model_gru_stock2",
         monitor="val_loss",
         mode="min",
         save_top_k=1,
@@ -114,8 +113,8 @@ if __name__ == "__main__":
         monitor="val_loss",
         patience=10,
     )
-    logger_lstm = TensorBoardLogger(save_dir="lightning_logs", name="lstm_stock")
-    logger_gru = TensorBoardLogger(save_dir="lightning_logs", name="gru_stock")
+    logger_lstm = TensorBoardLogger(save_dir="lightning_logs", name="lstm_stock_stock2")
+    logger_gru = TensorBoardLogger(save_dir="lightning_logs", name="gru_stock_stock2")
     trainer_lstm = pytorch_lightning.Trainer(
         accelerator="gpu",
         gpus=1,
@@ -139,11 +138,11 @@ if __name__ == "__main__":
 
     # inference
     trained_lstm = model.LitStockModel.load_from_checkpoint(
-        checkpoint_path="./checkpoints/best_model_lstm.ckpt",
+        checkpoint_path="./checkpoints/best_model_lstm_stock2.ckpt",
         n_features = N_FEATURES,
     )
     trained_gru = model.LitStockModel.load_from_checkpoint(
-        checkpoint_path="./checkpoints/best_model_gru.ckpt",
+        checkpoint_path="./checkpoints/best_model_gru_stock2.ckpt",
         n_features = N_FEATURES,
     )
 

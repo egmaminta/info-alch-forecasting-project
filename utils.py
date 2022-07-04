@@ -77,3 +77,43 @@ def descale(scaler, values):
 
     values_2d = numpy.array(values)[:, numpy.newaxis]
     return _descaler.inverse_transform(values_2d).flatten()
+
+
+def create_features_date_only(dataframe: pandas.DataFrame):
+    rows = []
+    for _, row in tqdm.tqdm(dataframe.iterrows(), total=dataframe.shape[0]):
+        row_data = dict(
+            day_of_week = _.dayofweek,
+            day_of_month = _.day,
+            week_of_year = _.week,
+            month = _.month,
+            close = row["Close"],
+        )
+        rows.append(row_data)
+    
+    return pandas.DataFrame(rows, index=dataframe.index)
+
+
+def future_predictions(scaler, freq, start, test_data: pandas.DataFrame, future_steps: int=7, **kwargs):
+    future_dates = pandas.date_range(freq=freq, start=start, periods=future_steps)
+    future_data = pandas.DataFrame(index=future_dates, columns=test_data.columns)
+    future_data.loc[:, "Close"] = 0
+    future_data = create_features_date_only(dataframe=future_data)
+    future_data = add_holiday_features(dataframe=future_data, **kwargs)
+    future_data = generate_cyclical_features(dataframe=future_data, col="day_of_week", period=7)
+    future_data = generate_cyclical_features(dataframe=future_data, col="day_of_month", period=30)
+    future_data = generate_cyclical_features(dataframe=future_data, col="week_of_year", period=52)
+    future_data = generate_cyclical_features(dataframe=future_data, col="month", period=12)
+
+    future_data["close"] = scaler.transform(future_data[["close"]])
+
+    new_data = pandas.concat([test_data, future_data], axis=0)
+
+    return new_data
+
+
+def get_datetime_index(dataframe: pandas.DataFrame):
+    return (
+        pandas.to_datetime(dataframe.index[-1]) + (pandas.to_datetime(dataframe.index[-1]) - pandas.to_datetime(dataframe.index[-2])),
+        pandas.to_datetime(dataframe.index[-1]) - pandas.to_datetime(dataframe.index[-2]),
+    )
